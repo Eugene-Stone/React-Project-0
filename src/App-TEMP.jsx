@@ -1,43 +1,34 @@
-import { useState, useEffect } from 'react';
-import { createConnection } from './chat.js';
+import { useState, useRef } from 'react';
 
-const serverUrl = 'https://localhost:1234';
+export default function Stopwatch() {
+	const [startTime, setStartTime] = useState(null);
+	const [now, setNow] = useState(null);
+	const intervalRef = useRef(null);
 
-function ChatRoom({ roomId }) {
-	const [message, setMessage] = useState('');
+	function handleStart() {
+		setStartTime(Date.now());
+		setNow(Date.now());
 
-	useEffect(() => {
-		const options = {
-			serverUrl: serverUrl,
-			roomId: roomId,
-		};
-		const connection = createConnection(options);
-		connection.connect();
-		return () => connection.disconnect();
-	}, [roomId]);
+		clearInterval(intervalRef.current);
+		intervalRef.current = setInterval(() => {
+			setNow(Date.now());
+		}, 10);
+	}
+
+	function handleStop() {
+		clearInterval(intervalRef.current);
+	}
+
+	let secondsPassed = 0;
+	if (startTime != null && now != null) {
+		secondsPassed = (now - startTime) / 1000;
+	}
 
 	return (
 		<>
-			<h1>Welcome to the {roomId} room!</h1>
-			<input value={message} onChange={(e) => setMessage(e.target.value)} />
-		</>
-	);
-}
-
-export default function App() {
-	const [roomId, setRoomId] = useState('general');
-	return (
-		<>
-			<label>
-				Choose the chat room:{' '}
-				<select value={roomId} onChange={(e) => setRoomId(e.target.value)}>
-					<option value="general">general</option>
-					<option value="travel">travel</option>
-					<option value="music">music</option>
-				</select>
-			</label>
-			<hr />
-			<ChatRoom roomId={roomId} />
+			<h1>Time passed: {secondsPassed.toFixed(3)}</h1>
+			<button onClick={handleStart}>Start</button>
+			<button onClick={handleStop}>Stop</button>
 		</>
 	);
 }
