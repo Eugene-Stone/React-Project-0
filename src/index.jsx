@@ -6,7 +6,7 @@ import './styles/styles.scss';
 // import App from './App-0';
 // import App from './App-1';
 // import App from './Gallery';
-import App from './TASKS/Lesson-17';
+import App from './TASKS/Lesson-18';
 
 const root = createRoot(document.getElementById('root'));
 root.render(

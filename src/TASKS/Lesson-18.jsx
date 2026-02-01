@@ -1,6 +1,6 @@
 /* 
-	LinkTask
-	LinkTitle
+	https://ru.react.dev/learn/synchronizing-with-effects
+	Эффекты для синхронизации
 	======AND======
 
 */

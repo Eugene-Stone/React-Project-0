@@ -123,3 +123,20 @@ button {
 		margin-top: 5px;
 	}
 }
+
+.gallery-overflow {
+	overflow-x: auto;
+	ul {
+		display: flex;
+		margin: 0;
+		padding: 0;
+	}
+	li {
+		list-style: none;
+		padding: 10px 10px;
+		&.active,
+		&:has(.active) {
+			background-color: pink;
+		}
+	}
+}
