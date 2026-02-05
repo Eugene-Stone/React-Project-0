@@ -9,7 +9,7 @@
 
 */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 function MyComponent() {
 	useEffect(() => {
 		// Код здесь будет выполняться после *каждого* рендера
@@ -248,9 +248,349 @@ function PageBio() {
 
 */
 
+function Form() {
+	const [firstName, setFirstName] = useState('');
+	const [lastName, setLastName] = useState('');
+
+	// ✅ Хорошо: Этот код должен сработать когда компонент отрендерится
+	useEffect(() => {
+		post('/analytics/event', { eventName: 'visit_form' });
+	}, []);
+
+	// 🔴 Излишне: специфическая логика ивента внутри Эффекта
+	const [jsonToSubmit, setJsonToSubmit] = useState(null);
+	useEffect(() => {
+		if (jsonToSubmit !== null) {
+			post('/api/register', jsonToSubmit);
+		}
+	}, [jsonToSubmit]);
+
+	function handleSubmit(e) {
+		e.preventDefault();
+		setJsonToSubmit({ firstName, lastName });
+	}
+	// ...
+}
+
+/* Если некоторая логика должна выполняться один раз при загрузке приложения, а не один раз при монтировании компонента, добавьте переменную верхнего уровня для отслеживания того, была ли она уже выполнена: */
+let didInit = false;
+
+function App() {
+	useEffect(() => {
+		if (!didInit) {
+			didInit = true;
+			// ✅ Будут вызваны один раз при загрузке приложения
+			loadDataFromLocalStorage();
+			checkAuthToken();
+		}
+	}, []);
+	// ...
+}
+
+/* 
+Этот вариант с useRef лучше
+*/
+function App2() {
+	const didInitRef = useRef(false);
+
+	useEffect(() => {
+		if (!didInitRef.current) {
+			didInitRef.current = true;
+			loadData();
+		}
+	}, []);
+	// ...
+}
+
+/* в React есть специальный хук для подписки на внешнее хранилище, который предпочтительнее использовать. Удалите эффект и замените его вызовом useSyncExternalStore: */
+
+function subscribe(callback) {
+	window.addEventListener('online', callback);
+	window.addEventListener('offline', callback);
+	return () => {
+		window.removeEventListener('online', callback);
+		window.removeEventListener('offline', callback);
+	};
+}
+
+function useOnlineStatus() {
+	// ✅ Лучше: Подписка на внешнее хранилище данных с помощью встроенного хука
+	return useSyncExternalStore(
+		subscribe, // React не будет подписываться заново, пока передаётся та же функция
+		() => navigator.onLine, // Как получить значение на клиенте
+		() => true, // Как получить значение на сервере
+	);
+}
+
+function ChatIndicator() {
+	const isOnline = useOnlineStatus();
+	// ...
+}
+
+/* Многие приложения используют эффекты для получения данных. Довольно распространено писать эффект для получения данных, подобный этому: */
+
+function SearchResults({ query }) {
+	const [results, setResults] = useState([]);
+	const [page, setPage] = useState(1);
+
+	useEffect(() => {
+		// 🔴 Избегайте: Получение данных без сбрасывающей функции
+		fetchResults(query, page).then((json) => {
+			setResults(json);
+		});
+		/* Вот так правильно */
+		/* 
+			let ignore = false;
+			fetchResults(query, page).then(json => {
+					if (!ignore) {
+							setResults(json);
+					}
+			});
+			return () => {
+					ignore = true;
+			};
+		*/
+	}, [query, page]);
+
+	function handleNextPageClick() {
+		setPage(page + 1);
+	}
+	// ...
+}
+
 // ====================================================
+/* Трансформация данных без использования эффектов 
+Ниже, компонент TodoList отображает список задач. Когда установлен флажок “Show only active todos”, завершенные задачи не отображаются в списке. Независимо от того, какие задачи видимы, нижняя часть страницы отображает количество задач, которые еще не завершены.
+
+Упростите этот компонент, удалив все ненужные состояния и эффекты. */
+
+function TodoListStart() {
+	const [todos, setTodos] = useState(initialTodos);
+	const [showActive, setShowActive] = useState(false);
+	const [activeTodos, setActiveTodos] = useState([]);
+	const [visibleTodos, setVisibleTodos] = useState([]);
+	const [footer, setFooter] = useState(null);
+
+	useEffect(() => {
+		setActiveTodos(todos.filter((todo) => !todo.completed));
+	}, [todos]);
+
+	useEffect(() => {
+		setVisibleTodos(showActive ? activeTodos : todos);
+	}, [showActive, todos, activeTodos]);
+
+	useEffect(() => {
+		setFooter(<footer>{activeTodos.length} todos left</footer>);
+	}, [activeTodos]);
+
+	return (
+		<>
+			<label>
+				<input
+					type="checkbox"
+					checked={showActive}
+					onChange={(e) => setShowActive(e.target.checked)}
+				/>
+				Show only active todos
+			</label>
+			<NewTodo onAdd={(newTodo) => setTodos([...todos, newTodo])} />
+			<ul>
+				{visibleTodos.map((todo) => (
+					<li key={todo.id}>{todo.completed ? <s>{todo.text}</s> : todo.text}</li>
+				))}
+			</ul>
+			{footer}
+		</>
+	);
+}
+
+// Исправленный
+function TodoList() {
+	const [todos, setTodos] = useState(initialTodos);
+	const [showActive, setShowActive] = useState(false);
+
+	const activeTodos = todos.filter((todo) => !todo.completed);
+	const visibleTodos = showActive ? activeTodos : todos;
+
+	// useEffect(() => {
+	// 	setActiveTodos(todos.filter((todo) => !todo.completed));
+	// }, [todos]);
+
+	// useEffect(() => {
+	// 	setVisibleTodos(showActive ? activeTodos : todos);
+	// }, [showActive, todos, activeTodos]);
+
+	// useEffect(() => {
+	// 	setFooter(<footer>{activeTodos.length} todos left</footer>);
+	// }, [activeTodos]);
+
+	return (
+		<>
+			<label>
+				<input
+					type="checkbox"
+					checked={showActive}
+					onChange={(e) => setShowActive(e.target.checked)}
+				/>
+				Show only active todos
+			</label>
+			<NewTodo onAdd={(newTodo) => setTodos([...todos, newTodo])} />
+			<ul>
+				{visibleTodos.map((todo) => (
+					<li key={todo.id}>{todo.completed ? <s>{todo.text}</s> : todo.text}</li>
+				))}
+			</ul>
+			{activeTodos.length} todos left
+		</>
+	);
+}
+
+function NewTodo({ onAdd }) {
+	const [text, setText] = useState('');
+
+	function handleAddClick() {
+		setText('');
+		onAdd(createTodo(text));
+	}
+
+	return (
+		<>
+			<input value={text} onChange={(e) => setText(e.target.value)} />
+			<button onClick={handleAddClick}>Add</button>
+		</>
+	);
+}
+
+let nextId = 0;
+
+function createTodo(text, completed = false) {
+	return {
+		id: nextId++,
+		text,
+		completed,
+	};
+}
+
+const initialTodos = [
+	createTodo('Get apples', true),
+	createTodo('Get oranges', true),
+	createTodo('Get carrots'),
+];
+
 // ====================================================
+/* Кэширование вычислений без использования Эффектов 
+В этом примере фильтрация задач была вынесена в отдельную функцию под названием getVisibleTodos(). Внутри этой функции есть вызов console.log(), который помогает следить, когда он вызывается. Переключите “Show only active todos” и обратите внимание, что это вызывает повторное выполнение getVisibleTodos(). Это ожидаемо, потому что видимые задачи меняются при переключении того, какие из них отображать.
+
+Ваша задача - удалить Эффект, который пересчитывает список visibleTodos в компоненте TodoList. Но вам нужно убедиться, что getVisibleTodos() не запускается повторно (и, следовательно, не выводит никаких логов) при вводе текста в поле ввода. */
+
+function TodoList2() {
+	const [todos, setTodos] = useState(initialTodos2);
+	const [showActive, setShowActive] = useState(false);
+	const [text, setText] = useState('');
+	// const [visibleTodos, setVisibleTodos] = useState([]);
+
+	// useEffect(() => {
+	// 	setVisibleTodos(getVisibleTodos(todos, showActive));
+	// }, [todos, showActive]);
+
+	const visibleTodos = useMemo(() => getVisibleTodos(todos, showActive), [todos, showActive]);
+
+	function handleAddClick() {
+		setText('');
+		setTodos([...todos, createTodo2(text)]);
+	}
+
+	return (
+		<>
+			<label>
+				<input
+					type="checkbox"
+					checked={showActive}
+					onChange={(e) => setShowActive(e.target.checked)}
+				/>
+				Show only active todos
+			</label>
+			<input value={text} onChange={(e) => setText(e.target.value)} />
+			<button onClick={handleAddClick}>Add</button>
+			<ul>
+				{visibleTodos.map((todo) => (
+					<li key={todo.id}>{todo.completed ? <s>{todo.text}</s> : todo.text}</li>
+				))}
+			</ul>
+		</>
+	);
+}
+
+let nextId2 = 0;
+let calls = 0;
+
+function getVisibleTodos(todos, showActive) {
+	console.log(`getVisibleTodos() was called ${++calls} times`);
+	const activeTodos = todos.filter((todo) => !todo.completed);
+	const visibleTodos = showActive ? activeTodos : todos;
+	return visibleTodos;
+}
+
+function createTodo2(text, completed = false) {
+	return {
+		id: nextId2++,
+		text,
+		completed,
+	};
+}
+
+const initialTodos2 = [
+	createTodo2('Get apples', true),
+	createTodo2('Get oranges', true),
+	createTodo2('Get carrots'),
+];
+
 // ====================================================
+/* Сброс состояния без использования эффектов 
+Компонент EditContact получает объект контакта с такой структурой { id, name, email } как проп savedContact. Попробуйте отредактировать поля для имени и адреса электронной почты. Как только вы нажмёте кнопку “Сохранить”, кнопка контакта над формой обновляется с измененным именем. Если нажать кнопку “Сброс”, все изменения в форме отменяются. Поиграйте с этим интерфейсом, чтобы разобраться в нем.
+
+Когда вы выбираете контакт с помощью кнопок сверху, форма сбрасывается, чтобы отобразить данные выбранного контакта. Это делается с помощью эффекта внутри EditContact.js. Удалите этот эффект. Найдите другой способ сбросить форму, когда изменяется savedContact.id. */
+
+function EditContact({ savedContact, onSave }) {
+	const [name, setName] = useState(savedContact.name);
+	const [email, setEmail] = useState(savedContact.email);
+
+	useEffect(() => {
+		setName(savedContact.name);
+		setEmail(savedContact.email);
+	}, [savedContact]);
+
+	return (
+		<section>
+			<label>
+				Name: <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
+			</label>
+			<label>
+				Email:{' '}
+				<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+			</label>
+			<button
+				onClick={() => {
+					const updatedData = {
+						id: savedContact.id,
+						name: name,
+						email: email,
+					};
+					onSave(updatedData);
+				}}>
+				Save
+			</button>
+			<button
+				onClick={() => {
+					setName(savedContact.name);
+					setEmail(savedContact.email);
+				}}>
+				Reset
+			</button>
+		</section>
+	);
+}
+
 // ====================================================
 // ====================================================
 // ====================================================
@@ -268,6 +608,10 @@ function mainFunc() {
 			<AppPlayground />
 			<hr />
 			<Counter />
+			<hr />
+			<TodoList />
+			<hr />
+			<TodoList2 />
 			<hr />
 		</>
 	);
