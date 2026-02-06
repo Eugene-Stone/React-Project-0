@@ -7,6 +7,11 @@
 	https://ru.react.dev/learn/you-might-not-need-an-effect
 	Возможно, вам не нужен Эффект
 
+	======AND======
+
+	https://ru.react.dev/learn/lifecycle-of-reactive-effects
+	Lifecycle of Reactive Effects
+
 */
 
 import { useState, useRef, useEffect, useMemo } from 'react';
@@ -555,10 +560,10 @@ function EditContact({ savedContact, onSave }) {
 	const [name, setName] = useState(savedContact.name);
 	const [email, setEmail] = useState(savedContact.email);
 
-	useEffect(() => {
-		setName(savedContact.name);
-		setEmail(savedContact.email);
-	}, [savedContact]);
+	// useEffect(() => {
+	// 	setName(savedContact.name);
+	// 	setEmail(savedContact.email);
+	// }, [savedContact]);
 
 	return (
 		<section>
@@ -592,6 +597,135 @@ function EditContact({ savedContact, onSave }) {
 }
 
 // ====================================================
+/* Отправить форму без Эффекта 
+Компонент Form позволяет отправить сообщение другу. Когда вы отправляете форму, переменная состояния showForm устанавливается в значение false. Это вызывает Эффект, который вызывает sendMessage(message), отправляя сообщение (вы можете увидеть его в консоли). После отправки сообщения вы видите диалоговое окно “Thank you” с кнопкой “Open chat”, которая позволяет вернуться к форме.
+
+Пользователи приложения отправляют слишком много сообщений. Чтобы немного усложнить чат, вы решили сначала показать диалоговое окно “Thank you”, а не форму. Измените переменную состояния showForm, чтобы она инициализировалась значением false вместо true. Как только вы внесете это изменение, консоль покажет, что было отправлено пустое сообщение. В этой логике что-то не так!
+
+В чем корень этой проблемы? И как его исправить? */
+
+function Form2() {
+	const [showForm, setShowForm] = useState(false);
+	const [message, setMessage] = useState('');
+
+	// useEffect(() => {
+	// 	if (!showForm) {
+	// 		sendMessage(message);
+	// 	}
+	// }, [showForm, message]);
+
+	function handleSubmit(e) {
+		e.preventDefault();
+		setShowForm(false);
+
+		sendMessage(message);
+	}
+
+	if (!showForm) {
+		return (
+			<>
+				<h1>Thanks for using our services!</h1>
+				<button
+					onClick={() => {
+						setMessage('');
+						setShowForm(true);
+					}}>
+					Open chat
+				</button>
+			</>
+		);
+	}
+
+	return (
+		<form onSubmit={handleSubmit}>
+			<textarea
+				placeholder="Message"
+				value={message}
+				onChange={(e) => setMessage(e.target.value)}
+			/>
+			<button type="submit" disabled={message === ''}>
+				Send
+			</button>
+		</form>
+	);
+}
+
+function sendMessage(message) {
+	console.log('Sending message: ' + message);
+}
+
+// ====================================================
+/* Включив serverUrl в качестве зависимости, вы гарантируете повторную синхронизацию Эффекта после его изменения. */
+function createConnection2(serverUrl, roomId) {
+	// A real implementation would actually connect to the server
+	return {
+		connect() {
+			console.log('✅ Connecting to "' + roomId + '" room at ' + serverUrl + '...');
+		},
+		disconnect() {
+			console.log('❌ Disconnected from "' + roomId + '" room at ' + serverUrl);
+		},
+	};
+}
+
+function ChatRoom2({ roomId }) {
+	const [serverUrl, setServerUrl] = useState('https://localhost:1234');
+
+	useEffect(() => {
+		const connection = createConnection2(serverUrl, roomId);
+		connection.connect();
+		return () => connection.disconnect();
+	}, [roomId, serverUrl]);
+
+	return (
+		<>
+			<label>
+				Server URL:{' '}
+				<input value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} />
+			</label>
+			<h1>Welcome to the {roomId} room!</h1>
+		</>
+	);
+}
+
+function App3() {
+	const [roomId, setRoomId] = useState('general');
+	return (
+		<>
+			<label>
+				Choose the chat room:{' '}
+				<select value={roomId} onChange={(e) => setRoomId(e.target.value)}>
+					<option value="general">general</option>
+					<option value="travel">travel</option>
+					<option value="music">music</option>
+				</select>
+			</label>
+			<br />
+			<ChatRoom2 roomId={roomId} />
+		</>
+	);
+}
+
+/* Если serverUrl и roomId не зависят от рендеринга и всегда имеют одинаковые значения, вы можете переместить их за пределы компонента. Теперь они не обязательно должны быть зависимостями: */
+/* 
+	const serverUrl = 'https://localhost:1234'; // serverUrl is not reactive
+	const roomId = 'general'; // roomId is not reactive
+
+	function ChatRoom() {
+	useEffect(() => {
+		const connection = createConnection(serverUrl, roomId);
+		connection.connect();
+		return () => {
+		connection.disconnect();
+		};
+	}, []); // ✅ All dependencies declared
+	// ...
+	}
+*/
+
+// ====================================================
+// ====================================================
+// ====================================================
 // ====================================================
 // ====================================================
 // ====================================================
@@ -612,6 +746,10 @@ function mainFunc() {
 			<TodoList />
 			<hr />
 			<TodoList2 />
+			<hr />
+			<Form2 />
+			<hr />
+			<App3 />
 			<hr />
 		</>
 	);
