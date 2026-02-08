@@ -724,6 +724,279 @@ function App3() {
 */
 
 // ====================================================
+/* 
+В этом примере компонент ChatRoom подключается к комнате чата, когда компонент монтируется, отключается, когда он размонтируется, и повторно подключается, когда вы выбираете другую комнату чата. Такое поведение является правильным, поэтому вам необходимо продолжать его работу.
+Однако есть проблема. Всякий раз, когда вы вводите текст в поле сообщения внизу, ChatRoom также повторно подключается к чату. (Вы можете заметить это, очистив консоль и введя входные данные.) Исправьте проблему, чтобы этого не произошло.
+
+*/
+
+function createConnection3(serverUrl2, roomId) {
+	// A real implementation would actually connect to the server
+	return {
+		connect() {
+			console.log('✅ Connecting to "' + roomId + '" room at ' + serverUrl2 + '...');
+		},
+		disconnect() {
+			console.log('❌ Disconnected from "' + roomId + '" room at ' + serverUrl2);
+		},
+	};
+}
+
+const serverUrl2 = 'https://localhost:1234';
+
+function ChatRoom3({ roomId }) {
+	const [message, setMessage] = useState('');
+
+	useEffect(() => {
+		const connection = createConnection3(serverUrl2, roomId);
+		connection.connect();
+		return () => connection.disconnect();
+		// });
+	}, [roomId]);
+
+	return (
+		<>
+			<h1>Welcome to the {roomId} room!</h1>
+			<input value={message} onChange={(e) => setMessage(e.target.value)} />
+		</>
+	);
+}
+
+function App4() {
+	const [roomId, setRoomId] = useState('general');
+	return (
+		<>
+			<label>
+				Choose the chat room:{' '}
+				<select value={roomId} onChange={(e) => setRoomId(e.target.value)}>
+					<option value="general">general</option>
+					<option value="travel">travel</option>
+					<option value="music">music</option>
+				</select>
+			</label>
+			<br />
+			<ChatRoom3 roomId={roomId} />
+		</>
+	);
+}
+
+// ====================================================
+/* 
+В этом примере Эффект подписывается на событие pointermove окна, чтобы переместить розовую точку на экране. Попробуйте навести указатель мыши на область предварительного просмотра (или коснуться экрана, если вы используете мобильное устройство), и посмотрите, как розовая точка следует за вашим движением.
+Также есть флажок. Установка флажка переключает переменную состояния canMove , но эта переменная состояния не используется нигде в коде.Ваша задача — изменить код так, чтобы при значении canMove false (флажок установлен) точка перестала двигаться.После того, как вы снова включите флажок (и установите canMove значение true ), поле снова должно следовать за движением. Другими словами, вопрос о том, может ли точка перемещаться или нет, должен синхронизироваться с тем, установлен ли флажок.
+*/
+function App5() {
+	const [position, setPosition] = useState({ x: 0, y: 0 });
+	const [canMove, setCanMove] = useState(false);
+
+	useEffect(() => {
+		function handleMove(e) {
+			setPosition({ x: e.clientX, y: e.clientY });
+		}
+		// window.addEventListener('pointermove', handleMove);
+
+		if (canMove) {
+			// function handleMove(e) {
+			// 	setPosition({ x: e.clientX, y: e.clientY });
+			// }
+			window.addEventListener('pointermove', handleMove);
+
+			return () => window.removeEventListener('pointermove', handleMove);
+		}
+		// return () => window.removeEventListener('pointermove', handleMove);
+	}, [canMove]);
+
+	return (
+		<>
+			<label>
+				<input
+					type="checkbox"
+					checked={canMove}
+					onChange={(e) => setCanMove(e.target.checked)}
+				/>
+				The dot is allowed to move
+			</label>
+			<hr />
+			<div
+				style={{
+					position: 'fixed',
+					backgroundColor: 'pink',
+					borderRadius: '50%',
+					opacity: 0.6,
+					transform: `translate(${position.x}px, ${position.y}px)`,
+					pointerEvents: 'none',
+					left: -20,
+					top: -20,
+					width: 40,
+					height: 40,
+				}}
+			/>
+		</>
+	);
+}
+
+// ====================================================
+/* 
+В этом примере служба чата в chat.js предоставляет два разных API: createEncryptedConnection и createUnencryptedConnection .Корневой компонент App позволяет пользователю выбирать, использовать ли шифрование или нет, а затем передает соответствующий метод API дочернему компоненту ChatRoom в качестве свойства createConnection.
+
+Обратите внимание, что изначально в журналах консоли указано, что соединение не зашифровано. Попробуйте поставить галочку: ничего не произойдет. Однако если после этого вы измените выбранную комнату, то чат переподключится и включит шифрование (как вы увидите из сообщений консоли). Это ошибка. Исправьте ошибку, чтобы переключение флажка также приводило к переподключению чата.
+*/
+export function createEncryptedConnection(roomId) {
+	// A real implementation would actually connect to the server
+	return {
+		connect() {
+			console.log('✅ 🔐 Connecting to "' + roomId + '... (encrypted)');
+		},
+		disconnect() {
+			console.log('❌ 🔐 Disconnected from "' + roomId + '" room (encrypted)');
+		},
+	};
+}
+
+export function createUnencryptedConnection(roomId) {
+	// A real implementation would actually connect to the server
+	return {
+		connect() {
+			console.log('✅ Connecting to "' + roomId + '... (unencrypted)');
+		},
+		disconnect() {
+			console.log('❌ Disconnected from "' + roomId + '" room (unencrypted)');
+		},
+	};
+}
+
+function ChatRoom4({ roomId, createConnection, isEncrypted }) {
+	useEffect(() => {
+		const connection = createConnection(roomId);
+		connection.connect();
+		return () => connection.disconnect();
+		/* // eslint-disable-next-line react-hooks/exhaustive-deps */
+	}, [roomId, isEncrypted]);
+
+	return <h1>Welcome to the {roomId} room!</h1>;
+}
+
+function App6() {
+	const [roomId, setRoomId] = useState('general');
+	const [isEncrypted, setIsEncrypted] = useState(false);
+	return (
+		<>
+			<label>
+				Choose the chat room:{' '}
+				<select value={roomId} onChange={(e) => setRoomId(e.target.value)}>
+					<option value="general">general</option>
+					<option value="travel">travel</option>
+					<option value="music">music</option>
+				</select>
+			</label>
+			<label>
+				<input
+					type="checkbox"
+					checked={isEncrypted}
+					onChange={(e) => setIsEncrypted(e.target.checked)}
+				/>
+				Enable encryption
+			</label>
+			<br />
+			<ChatRoom4
+				roomId={roomId}
+				isEncrypted={isEncrypted}
+				createConnection={
+					isEncrypted ? createEncryptedConnection : createUnencryptedConnection
+				}
+			/>
+		</>
+	);
+}
+
+// ====================================================
+/* 
+В этом примере есть два поля выбора. Одно поле выбора позволяет пользователю выбрать планету. Другое поле выбора позволяет пользователю выбрать место на этой планете. Второй ящик пока не работает. Ваша задача – заставить его показывать места на выбранной планете.
+Посмотрите, как работает первое поле выбора. Он заполняет состояние planetList результатом вызова API "/planets" . Идентификатор выбранной в данный момент планеты сохраняется в переменной состояния planetId . Вам нужно найти, где добавить дополнительный код, чтобы переменная состояния placeList заполнялась результатом вызова API "/planets/" + planetId + "/places" .
+Если вы реализуете это правильно, выбор планеты должен заполнить список мест. Изменение планеты должно изменить список мест.
+*/
+
+function Page() {
+	// import { fetchData } from './api.js';
+
+	const [planetList, setPlanetList] = useState([]);
+	const [planetId, setPlanetId] = useState('');
+
+	const [placeList, setPlaceList] = useState([]);
+	const [placeId, setPlaceId] = useState('');
+
+	useEffect(() => {
+		let ignore = false;
+		fetchData('/planets').then((result) => {
+			if (!ignore) {
+				console.log('Fetched a list of planets.');
+				setPlanetList(result);
+				setPlanetId(result[0].id); // Select the first planet
+			}
+		});
+		return () => {
+			ignore = true;
+		};
+	}, []);
+
+	useEffect(() => {
+		if (planetId === '') {
+			// Nothing is selected in the first box yet
+			return;
+		}
+
+		let ignore = false;
+		fetchData('/planets/' + planetId + '/places').then((result) => {
+			if (!ignore) {
+				console.log('Fetched a list of places on "' + planetId + '".');
+				setPlaceList(result);
+				setPlaceId(result[0].id); // Select the first place
+			}
+		});
+		return () => {
+			ignore = true;
+		};
+	}, [planetId]);
+
+	return (
+		<>
+			<label>
+				Pick a planet:{' '}
+				<select
+					value={planetId}
+					onChange={(e) => {
+						setPlanetId(e.target.value);
+					}}>
+					{planetList.map((planet) => (
+						<option key={planet.id} value={planet.id}>
+							{planet.name}
+						</option>
+					))}
+				</select>
+			</label>
+			<label>
+				Pick a place:{' '}
+				<select
+					value={placeId}
+					onChange={(e) => {
+						setPlaceId(e.target.value);
+					}}>
+					{placeList.map((place) => (
+						<option key={place.id} value={place.id}>
+							{place.name}
+						</option>
+					))}
+				</select>
+			</label>
+			<hr />
+			<p>
+				You are going to: {placeId || '???'} on {planetId || '???'}{' '}
+			</p>
+		</>
+	);
+}
+
+// ====================================================
 // ====================================================
 // ====================================================
 // ====================================================
@@ -750,6 +1023,12 @@ function mainFunc() {
 			<Form2 />
 			<hr />
 			<App3 />
+			<hr />
+			<App4 />
+			<hr />
+			<App5 />
+			<hr />
+			<App6 />
 			<hr />
 		</>
 	);
