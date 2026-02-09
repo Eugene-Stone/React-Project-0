@@ -4,6 +4,8 @@
 	
 	======AND======
 
+	https://ru.react.dev/learn/removing-effect-dependencies
+	Removing Effect Dependencies
 */
 import { useState, useEffect, useEffectEvent } from 'react';
 
@@ -97,7 +99,7 @@ function Timer() {
 		const id = setInterval(() => {
 			// setCount((c) => c + increment);
 			onTick();
-		}, 1000);
+		}, 100000);
 		return () => {
 			clearInterval(id);
 		};
@@ -306,7 +308,108 @@ function App2() {
 }
 
 // ====================================================
+/* 
+	https://ru.react.dev/learn/removing-effect-dependencies
+	Removing Effect Dependencies
+*/
+
+// Проблема с этим кодом в том, что вы синхронизируете две разные несвязанные вещи:
+/* 
+	function ShippingForm({ country }) {
+	const [cities, setCities] = useState(null);
+	const [city, setCity] = useState(null);
+	const [areas, setAreas] = useState(null);
+
+	useEffect(() => {
+			let ignore = false;
+			fetch(`/api/cities?country=${country}`)
+					.then(response => response.json())
+					.then(json => {
+							if (!ignore) {
+									setCities(json);
+							}
+					});
+			// 🔴 Avoid: A single Effect synchronizes two independent processes
+			if (city) {
+					fetch(`/api/areas?city=${city}`)
+							.then(response => response.json())
+							.then(json => {
+									if (!ignore) {
+											setAreas(json);
+									}
+							});
+			}
+			return () => {
+					ignore = true;
+			};
+	}, [country, city]); // ✅ All dependencies declared
+
+	// ...
+*/
+
+// Разделите логику на два эффекта, каждый из которых реагирует на реквизит, с которым ему необходимо синхронизироваться:
+/* 
+	function ShippingForm({ country }) {
+	const [cities, setCities] = useState(null);
+	useEffect(() => {
+			let ignore = false;
+			fetch(`/api/cities?country=${country}`)
+					.then(response => response.json())
+					.then(json => {
+							if (!ignore) {
+									setCities(json);
+							}
+					});
+			return () => {
+					ignore = true;
+			};
+	}, [country]); // ✅ All dependencies declared
+
+	const [city, setCity] = useState(null);
+	const [areas, setAreas] = useState(null);
+	useEffect(() => {
+			if (city) {
+					let ignore = false;
+					fetch(`/api/areas?city=${city}`)
+							.then(response => response.json())
+							.then(json => {
+									if (!ignore) {
+											setAreas(json);
+									}
+							});
+					return () => {
+							ignore = true;
+					};
+			}
+	}, [city]); // ✅ All dependencies declared
+
+	// ...
+*/
+
+// События эффектов не являются реактивными, поэтому вам не нужно указывать их как зависимости.
+/* 
+	function ChatRoom({ roomId, onReceiveMessage }) {
+	const [messages, setMessages] = useState([]);
+
+	const onMessage = useEffectEvent(receivedMessage => {
+			onReceiveMessage(receivedMessage);
+	});
+
+	useEffect(() => {
+			const connection = createConnection();
+			connection.connect();
+			connection.on('message', (receivedMessage) => {
+					onMessage(receivedMessage);
+			});
+			return () => connection.disconnect();
+	}, [roomId]); // ✅ All dependencies declared
+	// ...
+*/
+
 // ====================================================
+
+// Separating reactive and non-reactive code
+
 // ====================================================
 // ====================================================
 // ====================================================
