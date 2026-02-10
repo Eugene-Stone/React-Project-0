@@ -407,8 +407,30 @@ function App2() {
 */
 
 // ====================================================
+/* Этот эффект устанавливает интервал, который тикает каждую секунду. Вы заметили что-то странное: кажется, что интервал уничтожается и создается заново каждый раз, когда он тикает. Исправьте код, чтобы интервал не создавался постоянно. */
+function Timer3() {
+	const [count, setCount] = useState(0);
 
-// Separating reactive and non-reactive code
+	const setCountEvent = useEffectEvent(() => {
+		setCount(count + 1);
+	});
+	useEffect(() => {
+		console.log('✅ Creating an interval');
+		const id = setInterval(() => {
+			console.log('⏰ Interval tick');
+			// setCount(count + 1);
+			setCountEvent();
+			/* Или так */
+			// setCount((c) => c + 1);
+		}, 1000);
+		return () => {
+			console.log('❌ Clearing an interval');
+			clearInterval(id);
+		};
+	}, []);
+
+	return <h1>Counter: {count}</h1>;
+}
 
 // ====================================================
 // ====================================================
@@ -427,6 +449,8 @@ function mainFunc() {
 			<Timer2 />
 			<hr />
 			<App2 />
+			<hr />
+			<Timer3 />
 			<hr />
 		</>
 	);
